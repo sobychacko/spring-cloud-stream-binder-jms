@@ -1,18 +1,27 @@
 package org.springframework.cloud.stream.binder.jms.activemq;
 
-import org.apache.activemq.ActiveMQConnectionFactory;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.springframework.cloud.stream.binder.jms.spi.QueueProvisioner;
-import org.springframework.cloud.stream.binder.jms.test.ActiveMQTestUtils;
-import org.springframework.jms.core.JmsTemplate;
-
-import javax.jms.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.MessageListener;
+import javax.jms.Queue;
+import javax.jms.StreamMessage;
+
+import org.apache.activemq.ActiveMQConnectionFactory;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import org.springframework.cloud.stream.binder.ConsumerProperties;
+import org.springframework.cloud.stream.binder.ProducerProperties;
+import org.springframework.cloud.stream.binder.jms.test.ActiveMQTestUtils;
+import org.springframework.cloud.stream.binder.jms.utils.Base64UrlNamingStrategy;
+import org.springframework.cloud.stream.binder.jms.utils.DestinationNameResolver;
+import org.springframework.cloud.stream.binder.jms.utils.TopicPartitionRegistrar;
+import org.springframework.jms.core.JmsTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,31 +43,42 @@ public class ActiveMQQueueProvisionerIntegrationTest {
 
 	@Before
 	public void setUp() throws Exception {
-		target = new ActiveMQQueueProvisioner(activeMQConnectionFactory);
+		target = new ActiveMQQueueProvisioner(activeMQConnectionFactory,
+				new DestinationNameResolver(new Base64UrlNamingStrategy("anonymous.")));
 	}
 
 	@Test
 	public void provisionTopicAndConsumerGroup_whenSingleGroup_createsInfrastructure() throws Exception {
-		QueueProvisioner.Destinations destinations = target.provisionTopicAndConsumerGroup("topic", "group1");
-		Destination group = destinations.getGroups()[0];
-		Destination topic = destinations.getTopic();
+		TopicPartitionRegistrar topicPartitionRegistrar = target.provisionProducerDestination("topic", new ProducerProperties());
+		Queue queue = target.provisionConsumerDestination("topic", "group1", new ConsumerProperties());
 
-		jmsTemplate.convertAndSend(topic, "hi jms scs");
-		Object payloadGroup1 = jmsTemplate.receiveAndConvert(group);
+
+//		QueueProvisioner.Destinations destinations = target.provisionConsumerDestination("topic", "group1");
+//		Destination group = destinations.getGroups()[0];
+//		Destination topic = destinations.getTopic();
+
+		jmsTemplate.convertAndSend(topicPartitionRegistrar.getDestination(-1), "hi jms scs");
+		Object payloadGroup1 = jmsTemplate.receiveAndConvert(queue);
 
 		assertThat(payloadGroup1).isEqualTo("hi jms scs");
 	}
 
 	@Test
 	public void provisionTopicAndConsumerGroup_whenMultipleGroups_createsInfrastructure() throws Exception {
-		QueueProvisioner.Destinations destinations = target.provisionTopicAndConsumerGroup("topic", "group1", "group2");
-		Destination group1 = destinations.getGroups()[0];
-		Destination group2 = destinations.getGroups()[1];
-		Destination topic = destinations.getTopic();
 
-		jmsTemplate.convertAndSend(topic, "hi groups");
-		Object payloadGroup1 = jmsTemplate.receiveAndConvert(group1);
-		Object payloadGroup2 = jmsTemplate.receiveAndConvert(group2);
+		TopicPartitionRegistrar topicPartitionRegistrar = target.provisionProducerDestination("topic", new ProducerProperties());
+		Queue queue1 = target.provisionConsumerDestination("topic", "group1", new ConsumerProperties());
+		Queue queue2 = target.provisionConsumerDestination("topic", "group2", new ConsumerProperties());
+
+
+//		QueueProvisioner.Destinations destinations = target.provisionTopicAndConsumerGroup("topic", "group1", "group2");
+//		Destination group1 = destinations.getGroups()[0];
+//		Destination group2 = destinations.getGroups()[1];
+//		Destination topic = destinations.getTopic();
+
+		jmsTemplate.convertAndSend(topicPartitionRegistrar.getDestination(-1), "hi groups");
+		Object payloadGroup1 = jmsTemplate.receiveAndConvert(queue1);
+		Object payloadGroup2 = jmsTemplate.receiveAndConvert(queue2);
 
 		assertThat(payloadGroup1).isEqualTo("hi groups");
 		assertThat(payloadGroup2).isEqualTo("hi groups");

@@ -16,21 +16,22 @@
 
 package org.springframework.cloud.stream.binder.jms.utils;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Map;
+import javax.jms.JMSException;
+import javax.jms.Message;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.cloud.stream.binder.jms.spi.QueueProvisioner;
+
+import org.springframework.cloud.stream.provisioning.ProvisioningProvider;
 import org.springframework.integration.jms.JmsHeaderMapper;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.core.MessagePostProcessor;
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.converter.SimpleMessageConverter;
 import org.springframework.messaging.MessageHeaders;
-
-import javax.jms.JMSException;
-import javax.jms.Message;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Map;
 
 /**
  * {@link MessageRecoverer} implementation that republishes recovered messages
@@ -55,10 +56,10 @@ public class RepublishMessageRecoverer implements MessageRecoverer {
 	private final Log logger = LogFactory.getLog(getClass());
 
 	private final JmsTemplate jmsTemplate;
-	private final QueueProvisioner queueProvisioner;
+	private final ProvisioningProvider<?,?,?,?, String> queueProvisioner;
 	private final JmsHeaderMapper mapper;
 
-	public RepublishMessageRecoverer(QueueProvisioner queueProvisioner, JmsTemplate jmsTemplate, JmsHeaderMapper mapper) {
+	public RepublishMessageRecoverer(ProvisioningProvider queueProvisioner, JmsTemplate jmsTemplate, JmsHeaderMapper mapper) {
 		this.jmsTemplate = jmsTemplate;
 		this.queueProvisioner = queueProvisioner;
 		this.mapper = mapper;
@@ -66,7 +67,7 @@ public class RepublishMessageRecoverer implements MessageRecoverer {
 
 	@Override
 	public void recover(Message undeliveredMessage, Throwable cause) {
-		String deadLetterQueueName = queueProvisioner.provisionDeadLetterQueue();
+		String deadLetterQueueName = queueProvisioner.provisionDlq();
 
 		MessageConverter converter = new SimpleMessageConverter();
 		Object payload = null;

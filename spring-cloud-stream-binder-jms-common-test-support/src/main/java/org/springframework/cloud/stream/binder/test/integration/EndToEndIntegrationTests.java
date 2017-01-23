@@ -16,34 +16,44 @@
 
 package org.springframework.cloud.stream.binder.test.integration;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import javax.jms.ConnectionFactory;
+
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang.ArrayUtils;
-import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
 import org.springframework.boot.Banner;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.cloud.stream.binder.jms.spi.QueueProvisioner;
 import org.springframework.cloud.stream.binder.jms.utils.RepublishMessageRecoverer;
 import org.springframework.cloud.stream.binder.test.integration.receiver.ReceiverApplication;
 import org.springframework.cloud.stream.binder.test.integration.receiver.ReceiverApplication.Receiver;
 import org.springframework.cloud.stream.binder.test.integration.sender.SenderApplication;
 import org.springframework.cloud.stream.binder.test.integration.sender.SenderApplication.Sender;
+import org.springframework.cloud.stream.provisioning.ProvisioningProvider;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.messaging.Message;
 
-import javax.jms.ConnectionFactory;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
@@ -71,11 +81,11 @@ public abstract class EndToEndIntegrationTests {
 	protected static final String RETRY_BACKOFF_1X = "--spring.cloud.stream.bindings.input.consumer.backOffMultiplier=1";
 	protected static final String REQUIRED_GROUPS_FORMAT = "--spring.cloud.stream.bindings.output.producer.requiredGroups=%s";
 	protected final JmsTemplate jmsTemplate;
-	protected final QueueProvisioner queueProvisioner;
+	protected final ProvisioningProvider<?,?,?,?,String> queueProvisioner;
 	protected String randomGroupArg1;
 	protected String randomGroupArg2;
 
-	protected EndToEndIntegrationTests(QueueProvisioner queueProvisioner, ConnectionFactory connectionFactory) {
+	protected EndToEndIntegrationTests(ProvisioningProvider queueProvisioner, ConnectionFactory connectionFactory) {
 		this.queueProvisioner = queueProvisioner;
 		this.jmsTemplate = new JmsTemplate(connectionFactory);
 	}
@@ -245,7 +255,7 @@ public abstract class EndToEndIntegrationTests {
 		Sender sender = createSender();
 		createReceiver(randomGroupArg1, MAX_ATTEMPTS_1);
 
-		String deadLetterQueue = queueProvisioner.provisionDeadLetterQueue();
+		String deadLetterQueue = queueProvisioner.provisionDlq();
 
 		sender.send(Receiver.EXCEPTION_REQUEST);
 
@@ -281,7 +291,7 @@ public abstract class EndToEndIntegrationTests {
 			}
 		});
 
-		javax.jms.Message message = jmsTemplate.receive(queueProvisioner.provisionDeadLetterQueue());
+		javax.jms.Message message = jmsTemplate.receive(queueProvisioner.provisionDlq());
 		assertThat(message, notNullValue());
 	}
 

@@ -17,13 +17,13 @@
 package org.springframework.cloud.stream.binder.jms.activemq;
 
 import java.util.Map;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.Session;
 import javax.jms.TextMessage;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -31,9 +31,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import org.springframework.cloud.stream.binder.jms.spi.QueueProvisioner;
 import org.springframework.cloud.stream.binder.jms.test.ActiveMQTestUtils;
 import org.springframework.cloud.stream.binder.jms.utils.RepublishMessageRecoverer;
+import org.springframework.cloud.stream.provisioning.ProvisioningProvider;
 import org.springframework.integration.jms.DefaultJmsHeaderMapper;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.core.MessageCreator;
@@ -52,7 +52,7 @@ public class RepublishMessageRecovererTests {
 	static RepublishMessageRecoverer target;
 	static RepublishMessageRecoverer additionalHeadersTarget;
 	static JmsTemplate jmsTemplate;
-	static QueueProvisioner queueProvisioner = mock(QueueProvisioner.class);
+	static ProvisioningProvider queueProvisioner = mock(ProvisioningProvider.class);
 	private Message message = createMessage(ImmutableMap.of("fancy", "header"));
 	private final String exceptionMessage = "I am an unhappy exception";
 	private Throwable cause = new RuntimeException(exceptionMessage);
@@ -70,7 +70,7 @@ public class RepublishMessageRecovererTests {
 	@Before
 	public void setUp() throws Exception {
 		Mockito.reset(queueProvisioner);
-		when(queueProvisioner.provisionDeadLetterQueue()).thenReturn(DEAD_LETTER_QUEUE);
+		when(queueProvisioner.provisionDlq()).thenReturn(DEAD_LETTER_QUEUE);
 	}
 
 	@Test
@@ -78,7 +78,7 @@ public class RepublishMessageRecovererTests {
 		target.recover(createMessage(ImmutableMap.of("fancy", "header")), cause);
 		message = jmsTemplate.receive(DEAD_LETTER_QUEUE);
 
-		verify(queueProvisioner, times(1)).provisionDeadLetterQueue();
+		verify(queueProvisioner, times(1)).provisionDlq();
 	}
 
 	@Test
@@ -160,7 +160,7 @@ public class RepublishMessageRecovererTests {
 	}
 
 	private static class AdditionalHeadersMessageRecoverer extends RepublishMessageRecoverer {
-		public AdditionalHeadersMessageRecoverer(QueueProvisioner queueProvisioner, JmsTemplate jmsTemplate) {
+		public AdditionalHeadersMessageRecoverer(ProvisioningProvider queueProvisioner, JmsTemplate jmsTemplate) {
 			super(queueProvisioner, jmsTemplate, new DefaultJmsHeaderMapper());
 		}
 

@@ -44,7 +44,7 @@ public class ActiveMQBinderTests extends AbstractBinderTests<ActiveMQTestBinder,
 	@Override
 	protected ActiveMQTestBinder getBinder() throws Exception {
 		ActiveMQConnectionFactory connectionFactory = ActiveMQTestUtils.startEmbeddedActiveMQServer();
-		ActiveMQQueueProvisioner queueProvisioner = new ActiveMQQueueProvisioner(connectionFactory);
+		ActiveMQQueueProvisioner queueProvisioner = new ActiveMQQueueProvisioner(connectionFactory, new DestinationNameResolver(new Base64UrlNamingStrategy("anonymous.")));
 		GenericApplicationContext applicationContext = new GenericApplicationContext();
 		applicationContext.refresh();
 		JmsTemplate jmsTemplate = new JmsTemplate(connectionFactory);
@@ -60,7 +60,7 @@ public class ActiveMQBinderTests extends AbstractBinderTests<ActiveMQTestBinder,
 		jmsMessageDrivenChannelAdapterFactory.setApplicationContext(applicationContext);
 		jmsMessageDrivenChannelAdapterFactory.setBeanFactory(applicationContext.getBeanFactory());
 		JMSMessageChannelBinder binder = new JMSMessageChannelBinder(queueProvisioner,
-				new DestinationNameResolver(new Base64UrlNamingStrategy()), jmsSendingMessageHandlerFactory,
+				jmsSendingMessageHandlerFactory,
 				jmsMessageDrivenChannelAdapterFactory);
 		binder.setApplicationContext(applicationContext);
 		ActiveMQTestBinder testBinder = new ActiveMQTestBinder();
